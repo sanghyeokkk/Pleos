@@ -1,0 +1,27 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# 컴퓨터별 설정과 생성 파일
+/.idea/
+/.kotlin/
+/.android-build-user/
+/.gradle-user-home/
+/emulators/
+**/build/
+
+# 서명 키
+*.jks
+*.keystore

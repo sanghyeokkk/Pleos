@@ -1,0 +1,20 @@
+{
+  "packageName": "com.example.myapplication",
+  "appDescription": "An app that reads the position of the front left vehicle door.",
+  "version": "1.0",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "GET_FRONT_LEFT_DOOR_POSITION",
+        "description": "Read the current position of the front left vehicle door.",
+        "component": "activity",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    }
+  ]
+}

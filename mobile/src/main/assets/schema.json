@@ -1,0 +1,43 @@
+{
+  "packageName": "com.example.myapplication",
+  "appDescription": "A vehicle maintenance log that helps users record service history and review upcoming maintenance.",
+  "invokeWord": "내 차 관리",
+  "version": "1.0",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "ADD_MAINTENANCE_RECORD",
+        "description": "Open a draft maintenance record for the user to review and save in the app.",
+        "component": "activity",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "item": {"type": "string", "description": "The maintenance item or service mentioned by the user."},
+            "date": {"type": "string", "description": "The maintenance date in YYYY-MM-DD format if explicitly provided or clearly determined."},
+            "costWon": {"type": "number", "description": "The maintenance cost in Korean won if provided."}
+          },
+          "required": ["item"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "GET_MAINTENANCE_RECORD",
+        "description": "Find the latest saved maintenance record for a named item.",
+        "component": "activity",
+        "parameters": {"type": "object", "properties": {"item": {"type": "string", "description": "The maintenance item to look up."}}, "required": ["item"]}
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "GET_MAINTENANCE_DUE",
+        "description": "Check saved maintenance items that are due or upcoming, based on recorded intervals and available vehicle mileage.",
+        "component": "activity",
+        "parameters": {"type": "object", "properties": {}, "required": []}
+      }
+    }
+  ]
+}
