@@ -1,4 +1,4 @@
-# 내 차 관리 (Pleos Car Care)
+# Car maintenance (내 차 관리)
 
 차량의 누적 주행거리와 정비 이력을 바탕으로 다음 점검 시기를 확인하고, Gleo AI와 대화해 정비 기록을 남기는 차량용 앱 프로토타입입니다.
 
@@ -14,9 +14,9 @@
 
 ## 제출 APK
 
-- 파일: [`apk/Moonsanghyeok_car care_release.apk`](apk/Moonsanghyeok_car%20care_release.apk)
+- 파일: [`apk/Moonsanghyeok_Car maintenance_release.apk`](apk/Moonsanghyeok_Car%20maintenance_release.apk)
 - `mobile` 모듈의 release 빌드를 공모전 시연용 키로 서명한 APK입니다. 패키지 ID는 `com.example.myapplication`, 버전은 `1.0`입니다.
-- SHA-256: `E635E5A675BE2FA3488012CEEC5A76BB3EBD9609AD2C762CF57A4034E221B91E`
+- SHA-256: `6D75B3C3F0A3D8B7F277DD2750380FF41E36A5A449F25A0B521214EEE169C775`
 - 같은 패키지의 디버그 APK가 이미 설치되어 있고 서명 키가 다르면 업데이트 설치가 거부됩니다. 기존 기기의 데이터를 보존하려면 앱을 삭제하지 말고 별도의 깨끗한 테스트 에뮬레이터에서 설치하세요.
 - 서명 키와 비밀번호는 저장소에 포함하지 않습니다. 향후 동일 패키지의 업데이트를 배포하려면 같은 서명 키를 안전하게 보관해야 합니다.
 
@@ -34,11 +34,11 @@
 3. APK를 설치하거나 Android Studio에서 `mobile` 구성을 실행합니다. 예를 들어 깨끗한 에뮬레이터에서 아래 명령을 사용합니다.
 
    ```powershell
-   adb install "apk/Moonsanghyeok_car care_release.apk"
+   adb install "apk/Moonsanghyeok_Car maintenance_release.apk"
    ```
 
 4. 차 관리 앱에서 기어가 `P`이고 입력 제한이 해제된 상태인지 확인합니다. 차량 상태와 누적거리는 Pleos Connect Virtual Console에서 시험할 수 있습니다.
-5. Gleo를 호출해 다음과 같이 시험합니다.
+5. Gleo 호출어는 한국어 **내 차 관리**입니다. Gleo를 호출해 다음과 같이 시험합니다.
 
    - “내 차 관리에 오늘 엔진오일을 1만 km 주기로 기록해 줘.”
    - 확인 질문에서 “아니, 5천 km로 바꿔 줘.”라고 정정한 뒤 내용을 확인하고 저장을 승인합니다.

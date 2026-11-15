@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -64,7 +65,7 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
     Column(modifier.fillMaxSize().background(Canvas).padding(horizontal = 28.dp, vertical = 18.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column { Text("CAR CARE", color = Teal, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                Text("내 차 관리", color = Ink, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.app_name), color = Ink, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Text("기록에서 다음 점검까지, 한눈에", color = Color(0xFF607276)) }
             Row {
                 OutlinedButton(enabled = parked, onClick = { showRepairSearch = true }) { Text("주변 정비소") }
