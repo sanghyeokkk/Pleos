@@ -15,6 +15,7 @@ class MaintenanceDueTest {
     @Test fun unknownHistoricalMileageNeverUsesCurrentMileage() {
         val record = MaintenanceRecord(item = "와이퍼", date = LocalDate.of(2026, 1, 1), mileageKm = null, intervalKm = 10000, intervalMonths = null, costWon = null)
         assertNull(maintenanceDue(record, 43000.0).distanceRemaining)
+        assertEquals("정비 당시 주행거리를 입력해 주세요", dueLabel(record, 43000.0))
     }
     @Test fun marksOverdueDistanceAndDate() {
         val record = MaintenanceRecord(item = "타이어", date = LocalDate.of(2025, 1, 1), mileageKm = 40000, intervalKm = 5000, intervalMonths = 12, costWon = null)

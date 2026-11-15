@@ -22,4 +22,12 @@ class MaintenanceReminderTest {
         assertEquals(1, dateDueCount(records, LocalDate.of(2026, 1, 1)))
         assertEquals(2, dateDueCount(records, LocalDate.of(2026, 12, 1)))
     }
+
+    @Test fun groupsTheSameItemWhenSpacingDiffers() {
+        val records = listOf(
+            MaintenanceRecord(item = "엔진 오일", date = LocalDate.of(2024, 1, 1), mileageKm = null, intervalKm = null, intervalMonths = 12, costWon = null),
+            MaintenanceRecord(item = "엔진오일", date = LocalDate.of(2026, 1, 1), mileageKm = null, intervalKm = null, intervalMonths = 12, costWon = null)
+        )
+        assertEquals(0, dateDueCount(records, LocalDate.of(2026, 2, 1)))
+    }
 }

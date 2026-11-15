@@ -25,3 +25,4 @@ local.properties
 # 서명 키
 *.jks
 *.keystore
+/.local-signing/

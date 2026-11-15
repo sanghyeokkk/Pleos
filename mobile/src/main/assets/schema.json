@@ -8,16 +8,39 @@
       "type": "function",
       "function": {
         "name": "ADD_MAINTENANCE_RECORD",
-        "description": "Open a draft maintenance record for the user to review and save in the app.",
-        "component": "activity",
+        "description": "Prepare and save a maintenance record after the user confirms its details.",
+        "component": "service",
         "parameters": {
           "type": "object",
           "properties": {
-            "item": {"type": "string", "description": "The maintenance item or service mentioned by the user."},
-            "date": {"type": "string", "description": "The maintenance date in YYYY-MM-DD format if explicitly provided or clearly determined."},
-            "costWon": {"type": "number", "description": "The maintenance cost in Korean won if provided."}
+            "item": {
+              "type": "string",
+              "description": "The maintenance item or service mentioned by the user."
+            },
+            "date": {
+              "type": "string",
+              "description": "The maintenance date exactly as stated by the user, preserving relative date expressions without conversion."
+            },
+            "costWon": {
+              "type": "number",
+              "description": "The maintenance cost in Korean won if provided."
+            },
+            "confirmed": {
+              "type": "boolean",
+              "description": "Whether the user confirmed saving the proposed maintenance record."
+            },
+            "intervalKm": {
+              "type": "number",
+              "description": "The maintenance interval in kilometers stated by the user."
+            },
+            "mileageKm": {
+              "type": "number",
+              "description": "The vehicle odometer in kilometers at the time of the maintenance, only if stated by the user."
+            }
           },
-          "required": ["item"]
+          "required": [
+            "item"
+          ]
         }
       }
     },
@@ -26,8 +49,19 @@
       "function": {
         "name": "GET_MAINTENANCE_RECORD",
         "description": "Find the latest saved maintenance record for a named item.",
-        "component": "activity",
-        "parameters": {"type": "object", "properties": {"item": {"type": "string", "description": "The maintenance item to look up."}}, "required": ["item"]}
+        "component": "service",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "description": "The maintenance item to look up."
+            }
+          },
+          "required": [
+            "item"
+          ]
+        }
       }
     },
     {
@@ -35,8 +69,12 @@
       "function": {
         "name": "GET_MAINTENANCE_DUE",
         "description": "Check saved maintenance items that are due or upcoming, based on recorded intervals and available vehicle mileage.",
-        "component": "activity",
-        "parameters": {"type": "object", "properties": {}, "required": []}
+        "component": "service",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
       }
     }
   ]

@@ -18,10 +18,10 @@ import java.time.LocalDate
 private val Ink = Color(0xFF182D32)
 private val Teal = Color(0xFF006D66)
 private val Canvas = Color(0xFFF3F6F3)
-data class GleoDraft(val item: String, val date: String? = null, val costWon: String? = null, val id: String = java.util.UUID.randomUUID().toString())
+data class GleoDraft(val item: String, val date: String? = null, val costWon: String? = null, val intervalKm: String? = null, val id: String = java.util.UUID.randomUUID().toString())
 
 @Composable
-fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoading: Boolean, gleoDraft: GleoDraft?, parked: Boolean, repairShops: List<RepairShop>, shopStatus: String, onSearchRepairs: () -> Unit, onSearchBluehands: () -> Unit, onNavigateRepair: (RepairShop) -> Unit, onDraftHandled: () -> Unit, onRefresh: () -> Unit, remindersEnabled: Boolean, reminderMessage: String, onRemindersChanged: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoading: Boolean, gleoDraft: GleoDraft?, recordsRevision: Int, parked: Boolean, repairShops: List<RepairShop>, shopStatus: String, onSearchRepairs: () -> Unit, onSearchBluehands: () -> Unit, onNavigateRepair: (RepairShop) -> Unit, onDraftHandled: () -> Unit, onRefresh: () -> Unit, remindersEnabled: Boolean, reminderMessage: String, onRemindersChanged: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store = remember { MaintenanceStore(context) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -35,12 +35,16 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
     var draftItem by remember { mutableStateOf("") }
     var draftDate by remember { mutableStateOf<String?>(null) }
     var draftCost by remember { mutableStateOf<String?>(null) }
+    var draftInterval by remember { mutableStateOf<String?>(null) }
     var currentInput by remember { mutableStateOf("") }
     var showManualInput by remember { mutableStateOf(false) }
     val manualKm = currentInput.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0 && it <= 10_000_000 }
     val effectiveKm = currentKm ?: manualKm
+    LaunchedEffect(recordsRevision) {
+        if (recordsRevision > 0) try { records = store.load(); loadFailed = false } catch (e: Exception) { loadFailed = true; error = e.message }
+    }
     LaunchedEffect(currentKm) { if (currentKm != null) { currentInput = ""; showManualInput = false } }
-    val latest = records.groupBy { it.item.trim().lowercase() }.values.map { group -> group.maxWith(compareBy<MaintenanceRecord> { it.date }.thenBy { records.indexOf(it) }) }
+    val latest = records.groupBy { normalizeMaintenanceItem(it.item) }.values.map { group -> group.maxWith(compareBy<MaintenanceRecord> { it.date }.thenBy { records.indexOf(it) }) }
         .sortedWith(compareBy<MaintenanceRecord> { record ->
             val due = maintenanceDue(record, effectiveKm)
             if ((due.distanceRemaining != null && due.distanceRemaining <= 0) || (due.dueDate != null && due.dueDate <= LocalDate.now())) 0 else 1
@@ -51,7 +55,7 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
     }
     LaunchedEffect(gleoDraft?.id) {
         if (gleoDraft != null) {
-            if (!loadFailed && parked) { editing = null; draftItem = gleoDraft.item; draftDate = gleoDraft.date; draftCost = gleoDraft.costWon; showForm = true }
+            if (!loadFailed && parked) { editing = null; draftItem = gleoDraft.item; draftDate = gleoDraft.date; draftCost = gleoDraft.costWon; draftInterval = gleoDraft.intervalKm; showForm = true }
             onDraftHandled()
         }
     }
@@ -65,7 +69,7 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
             Row {
                 OutlinedButton(enabled = parked, onClick = { showRepairSearch = true }) { Text("주변 정비소") }
                 Spacer(Modifier.width(8.dp))
-                Button(enabled = !loadFailed && parked, onClick = { editing = null; draftItem = ""; draftDate = null; draftCost = null; showForm = true }, colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("+ 정비 기록") }
+                Button(enabled = !loadFailed && parked, onClick = { editing = null; draftItem = ""; draftDate = null; draftCost = null; draftInterval = null; showForm = true }, colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("+ 정비 기록") }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -135,7 +139,7 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
             }
         }
     }
-    if (showForm) RecordDialog(currentKm = currentKm, initial = editing, draftItem = draftItem, draftDate = draftDate, draftCost = draftCost, onDismiss = { showForm = false }, onSave = { record ->
+    if (showForm) RecordDialog(currentKm = currentKm, initial = editing, draftItem = draftItem, draftDate = draftDate, draftCost = draftCost, draftInterval = draftInterval, onDismiss = { showForm = false }, onSave = { record ->
         try { val updated = if (editing == null) records + record else records.map { if (it.id == record.id) record else it }; store.save(updated); records = updated; error = null; showForm = false }
         catch (e: Exception) { error = e.message ?: "기록을 저장하지 못했습니다."; showForm = false }
     })
@@ -173,11 +177,11 @@ fun MaintenanceScreen(currentKm: Double?, odometerStatus: String, odometerLoadin
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RecordDialog(currentKm: Double?, initial: MaintenanceRecord?, draftItem: String, draftDate: String?, draftCost: String?, onDismiss: () -> Unit, onSave: (MaintenanceRecord) -> Unit) {
+private fun RecordDialog(currentKm: Double?, initial: MaintenanceRecord?, draftItem: String, draftDate: String?, draftCost: String?, draftInterval: String?, onDismiss: () -> Unit, onSave: (MaintenanceRecord) -> Unit) {
     var item by remember { mutableStateOf(initial?.item ?: draftItem) }
     var date by remember { mutableStateOf(initial?.date?.toString() ?: draftDate ?: LocalDate.now().toString()) }
     var mileage by remember { mutableStateOf(initial?.mileageKm?.toString() ?: "") }
-    var interval by remember { mutableStateOf(initial?.intervalKm?.toString() ?: "") }
+    var interval by remember { mutableStateOf(initial?.intervalKm?.toString() ?: draftInterval ?: "") }
     var months by remember { mutableStateOf(initial?.intervalMonths?.toString() ?: "") }
     var cost by remember { mutableStateOf(initial?.costWon?.toString() ?: draftCost ?: "") }
     var error by remember { mutableStateOf("") }

@@ -18,7 +18,7 @@ class OdometerFallbackTest {
         compose.setContent {
             MaintenanceScreen(
                 currentKm = current.value, odometerStatus = "조회 상태", odometerLoading = loading.value,
-                gleoDraft = null, parked = true, repairShops = emptyList(), shopStatus = "",
+                gleoDraft = null, recordsRevision = 0, parked = true, repairShops = emptyList(), shopStatus = "",
                 onSearchRepairs = {}, onSearchBluehands = {}, onNavigateRepair = {}, onDraftHandled = {},
                 onRefresh = {}, remindersEnabled = false, reminderMessage = "", onRemindersChanged = {}
             )

@@ -14,6 +14,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <queries>
+        <package android:name="ai.umos.ambientai" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -48,13 +52,36 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".GleoActionActivity"
+            android:exported="true"
+            android:permission="ai.umos.gleo.permission.APP_ACTION"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
+                <action android:name="com.example.myapplication.ADD_MAINTENANCE_RECORD" />
+                <action android:name="com.example.myapplication.GET_MAINTENANCE_RECORD" />
+                <action android:name="com.example.myapplication.GET_MAINTENANCE_DUE" />
                 <action android:name="ADD_MAINTENANCE_RECORD" />
                 <action android:name="GET_MAINTENANCE_RECORD" />
                 <action android:name="GET_MAINTENANCE_DUE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <receiver
+            android:name=".GleoActionReceiver"
+            android:exported="true"
+            android:permission="ai.umos.gleo.permission.APP_ACTION">
+            <intent-filter>
+                <action android:name="com.example.myapplication.ADD_MAINTENANCE_RECORD" />
+                <action android:name="ADD_MAINTENANCE_RECORD" />
+                <action android:name="com.example.myapplication.GET_MAINTENANCE_RECORD" />
+                <action android:name="com.example.myapplication.GET_MAINTENANCE_DUE" />
+                <action android:name="GET_MAINTENANCE_RECORD" />
+                <action android:name="GET_MAINTENANCE_DUE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

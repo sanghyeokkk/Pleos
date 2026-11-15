@@ -23,8 +23,9 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                // Keep the contest build runnable on the Pleos emulator. The optimized
+                // build fails during AndroidX startup due to an access error.
+                enable = false
             }
         }
     }

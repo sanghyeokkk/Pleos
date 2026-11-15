@@ -49,13 +49,13 @@ object MaintenanceReminders {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(ENABLED, enabled).commit()
     }
 
-    fun notifyDue(context: Context, currentKm: Double? = null) {
+    fun notifyDue(context: Context, currentKm: Double? = null, notificationId: Int = NOTIFICATION_ID) {
         if (!enabled(context) || !NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val records = try { MaintenanceStore(context).load() } catch (_: Exception) { return }
         val count = dueCount(records, currentKm)
         if (count == 0) {
-            NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+            NotificationManagerCompat.from(context).cancel(notificationId)
             return
         }
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -69,7 +69,7 @@ object MaintenanceReminders {
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
-        try { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification) } catch (_: SecurityException) { }
+        try { NotificationManagerCompat.from(context).notify(notificationId, notification) } catch (_: SecurityException) { }
     }
 }
 

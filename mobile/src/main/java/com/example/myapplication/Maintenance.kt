@@ -24,7 +24,7 @@ fun dateDueCount(records: List<MaintenanceRecord>, today: LocalDate = LocalDate.
 }
 
 fun dueCount(records: List<MaintenanceRecord>, currentKm: Double?, today: LocalDate = LocalDate.now()): Int {
-    val latest = records.groupBy { it.item.trim().lowercase() }.values.map { group ->
+    val latest = records.groupBy { normalizeMaintenanceItem(it.item) }.values.map { group ->
         group.maxWith(compareBy<MaintenanceRecord> { it.date }.thenBy { records.indexOf(it) })
     }
     return latest.count { record ->
@@ -44,7 +44,13 @@ fun dueLabel(record: MaintenanceRecord, currentKm: Double?, today: LocalDate = L
     val distance = due.distanceRemaining?.let { if (it <= 0) "거리 기준 점검 시기 지남" else "거리 기준 ${"%,d".format(it)}km 남음" }
     val date = due.dueDate?.let { val days = ChronoUnit.DAYS.between(today, it); if (days <= 0) "날짜 기준 점검 시기 지남 ($it)" else "날짜 기준 ${days}일 남음 ($it)" }
     val warning = if (record.mileageKm != null && currentKm != null && currentKm < record.mileageKm) "현재 거리가 기록 당시 거리보다 작습니다. 입력값을 확인해 주세요." else null
-    return listOfNotNull(warning, distance, date).joinToString(" · ").ifEmpty { if (record.intervalKm != null && currentKm == null) "현재 주행거리를 확인해 주세요" else "점검 기준을 설정해 주세요" }
+    return listOfNotNull(warning, distance, date).joinToString(" · ").ifEmpty {
+        when {
+            record.intervalKm != null && record.mileageKm == null -> "정비 당시 주행거리를 입력해 주세요"
+            record.intervalKm != null && currentKm == null -> "현재 주행거리를 확인해 주세요"
+            else -> "점검 기준을 설정해 주세요"
+        }
+    }
 }
 
 class MaintenanceStore(context: Context) {

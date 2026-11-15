@@ -40,7 +40,7 @@ class MaintenanceFlowTest {
         compose.setContent {
             CompositionLocalProvider(LocalContext provides isolated) {
                 MaintenanceScreen(currentKm = current.value, odometerStatus = "차량 주행거리 조회 완료", odometerLoading = false,
-                    gleoDraft = null, parked = true, repairShops = emptyList(), shopStatus = "",
+                    gleoDraft = null, recordsRevision = 0, parked = true, repairShops = emptyList(), shopStatus = "",
                     onSearchRepairs = {}, onSearchBluehands = { navigated = true }, onNavigateRepair = {},
                     onDraftHandled = {}, onRefresh = {}, remindersEnabled = false, reminderMessage = "", onRemindersChanged = {})
             }

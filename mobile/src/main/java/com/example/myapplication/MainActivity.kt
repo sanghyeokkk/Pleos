@@ -72,6 +72,11 @@ class MainActivity : ComponentActivity() {
     private val odometerStatus = mutableStateOf("차량 주행거리를 확인하는 중입니다.")
     private val odometerLoading = mutableStateOf(true)
     private val gleoDraft = mutableStateOf<GleoDraft?>(null)
+    private val recordsRevision = mutableStateOf(0)
+    private val gleoRequestListener: () -> Unit = { drainGleoRequests() }
+    private val gleoRecordListener: () -> Unit = { recordsRevision.value++ }
+    private data class PendingVoiceRecord(val record: MaintenanceRecord, val createdAt: Long)
+    private var pendingVoiceRecord: PendingVoiceRecord? = null
     private val parked = mutableStateOf(false)
     private val uxPermitsEditing = mutableStateOf(false)
     private var uxStateKnown = false
@@ -186,6 +191,7 @@ class MainActivity : ComponentActivity() {
                         odometerStatus = odometerStatus.value,
                         odometerLoading = odometerLoading.value,
                         gleoDraft = gleoDraft.value,
+                        recordsRevision = recordsRevision.value,
                         parked = canEdit(),
                         repairShops = shops.value,
                         shopStatus = shopStatus.value,
@@ -209,7 +215,9 @@ class MainActivity : ComponentActivity() {
         initializeTextToSpeech()
         initializeSpeechToText()
         initializeFusedLocation()
-        handleGleoIntent(intent)
+        GleoRequestBridge.attach(gleoRequestListener)
+        GleoRequestBridge.attachRecordListener(gleoRecordListener)
+        drainGleoRequests()
     }
 
     override fun onStart() {
@@ -314,11 +322,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleGleoIntent(intent)
+        drainGleoRequests()
     }
 
-    private fun handleGleoIntent(intent: Intent?) {
-        val action = intent?.action ?: return
+    private fun drainGleoRequests() {
+        while (true) handleGleoIntent(GleoRequestBridge.take() ?: return)
+    }
+
+    private fun handleGleoIntent(intent: Intent) {
+        val action = intent.action?.removePrefix("$packageName.") ?: return
         if (action !in setOf("ADD_MAINTENANCE_RECORD", "GET_MAINTENANCE_RECORD", "GET_MAINTENANCE_DUE")) return
         val raw = intent.getStringExtra("ACTION_PARAM")
         val json = runCatching {
@@ -328,38 +340,118 @@ class MainActivity : ComponentActivity() {
         }.getOrDefault(JSONObject())
         val item = (json.optString("item").takeIf { it.isNotBlank() } ?: intent.getStringExtra("item").orEmpty()).trim().take(40)
         if (action != "ADD_MAINTENANCE_RECORD") {
-            respondToMaintenanceQuery(action, item)
+            readVoiceOdometer { currentMileage ->
+                if (!isDestroyed) {
+                    val result = maintenanceVoiceQuery(this, action, item, currentMileage?.takeIf { it.isFinite() && it >= 0 })
+                    sendGleoResponse(action, result.status, result.message, result.data)
+                }
+            }
             return
         }
-        if (item.isBlank()) {
-            sendGleoResponse(action, "asking", "A maintenance item is required.")
+        val intervalText = if (json.has("intervalKm") && !json.isNull("intervalKm")) json.optString("intervalKm") else intent.extras?.get("intervalKm")?.toString()
+        val interval = intervalText?.toIntOrNull()
+        if (intervalText != null && (interval == null || interval !in 1..99_999_999)) {
+            sendGleoResponse(action, "asking", "Please provide a valid positive maintenance interval in kilometers.")
             return
+        }
+        val mileageText = if (json.has("mileageKm") && !json.isNull("mileageKm")) json.optString("mileageKm") else intent.extras?.get("mileageKm")?.toString()
+        val mileage = mileageText?.toIntOrNull()
+        if (mileageText != null && (mileage == null || mileage !in 0..99_999_999)) {
+            sendGleoResponse(action, "asking", "Please provide a valid maintenance mileage in kilometers.")
+            return
+        }
+        val confirmation = when {
+            json.has("confirmed") && !json.isNull("confirmed") && json.opt("confirmed") is Boolean -> json.getBoolean("confirmed")
+            intent.hasExtra("confirmed") && intent.extras?.get("confirmed") is Boolean -> intent.getBooleanExtra("confirmed", false)
+            else -> null
         }
         val dateString = (json.optString("date").takeIf { it.isNotBlank() } ?: intent.getStringExtra("date"))
-        val parsedDate = dateString?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
-        if (dateString != null && (parsedDate == null || parsedDate.isAfter(java.time.LocalDate.now()))) {
-            sendGleoResponse(action, "asking", "Please provide a valid maintenance date not later than today.")
+        val costText = if (json.has("costWon") && !json.isNull("costWon")) json.optString("costWon") else intent.extras?.get("costWon")?.toString()
+        val date = dateString?.let { parseGleoDate(it) }
+        if (dateString != null && (date == null || date.isAfter(java.time.LocalDate.now()))) {
+            sendGleoResponse(action, "asking", "Please provide the maintenance date, which must not be in the future.")
             return
         }
-        val costText = if (json.has("costWon") && !json.isNull("costWon")) json.optString("costWon") else intent.extras?.get("costWon")?.toString()
-        val cost = costText?.toLongOrNull()
+        val cost = costText?.toIntOrNull()
         if (costText != null && (cost == null || cost !in 0..999_999_999)) {
             sendGleoResponse(action, "asking", "Please provide a valid whole-number cost in Korean won.")
             return
         }
+        val existing = pendingVoiceRecord?.takeIf { android.os.SystemClock.elapsedRealtime() - it.createdAt < 120_000L }
+        val changedRecord = existing?.record?.let {
+            applyVoiceDraftChanges(it, VoiceDraftChanges(item = item.takeIf(String::isNotBlank), date = date, mileageKm = mileage, intervalKm = interval, costWon = cost))
+        }
+        val changed = existing != null && changedRecord != existing.record
+        val draftAction = voiceDraftAction(confirmation, existing != null, changed)
+        if (draftAction == VoiceDraftAction.CANCEL) {
+            pendingVoiceRecord = null
+            sendGleoResponse(action, "success", "The proposed maintenance record was cancelled without saving.")
+            return
+        }
+        val shouldCommit = draftAction == VoiceDraftAction.SAVE
+        if (!shouldCommit) {
+            if (changedRecord != null) {
+                pendingVoiceRecord = PendingVoiceRecord(changedRecord, android.os.SystemClock.elapsedRealtime())
+            } else {
+            if (item.isBlank()) { sendGleoResponse(action, "asking", "A maintenance item is required."); return }
+            if (date == null) {
+                sendGleoResponse(action, "asking", "Please provide the maintenance date, which must not be in the future.")
+                return
+            }
+            pendingVoiceRecord = PendingVoiceRecord(MaintenanceRecord(item = item, date = date, mileageKm = mileage, intervalKm = interval, intervalMonths = null, costWon = cost), android.os.SystemClock.elapsedRealtime())
+            }
+        }
+        val expectedPending = pendingVoiceRecord
         var completed = false
         fun respond(allowed: Boolean) {
             runOnUiThread {
                 if (completed || isDestroyed) return@runOnUiThread
-                if (allowed && !uxStateKnown) {
-                    refreshHandler.postDelayed({ respond(true) }, 100)
+                if (allowed && !uxStateKnown) { refreshHandler.postDelayed({ respond(true) }, 100); return@runOnUiThread }
+                completed = true
+                if (pendingVoiceRecord !== expectedPending) {
+                    sendGleoResponse(action, "fail", "The pending record changed. Please start again.")
                     return@runOnUiThread
                 }
-                completed = true
                 parked.value = allowed
-                val permitted = allowed && uxPermitsEditing.value
-                if (permitted) gleoDraft.value = GleoDraft(item, parsedDate?.toString(), cost?.toString())
-                sendGleoResponse(action, if (permitted) "asking" else "fail", if (permitted) "Please review the maintenance record in the app and confirm before saving." else "The record can be edited when the vehicle is parked and restrictions allow it.")
+                if (!allowed || !uxPermitsEditing.value) {
+                    pendingVoiceRecord = null
+                    sendGleoResponse(action, "fail", "Records can be added when the vehicle is parked and restrictions allow it.")
+                } else if (shouldCommit) {
+                    val pending = pendingVoiceRecord
+                    pendingVoiceRecord = null
+                    if (pending == null || android.os.SystemClock.elapsedRealtime() - pending.createdAt >= 120_000L) {
+                        sendGleoResponse(action, "fail", "The confirmation expired. Please request the record again.")
+                    } else try {
+                        val store = MaintenanceStore(this)
+                        store.save(store.load() + pending.record)
+                        recordsRevision.value++
+                        sendGleoResponse(action, "success", "The confirmed maintenance record was saved.", org.json.JSONArray().put(JSONObject().put("item", pending.record.item).put("date", pending.record.date.toString())))
+                    } catch (e: Exception) { sendGleoResponse(action, "fail", "The maintenance record could not be saved.") }
+                } else {
+                    val record = pendingVoiceRecord!!.record
+                    fun askForConfirmation(updated: MaintenanceRecord) {
+                        val data = JSONObject().put("item", updated.item).put("date", updated.date.toString())
+                        updated.costWon?.let { data.put("costWon", it) }
+                        updated.intervalKm?.let { data.put("intervalKm", it) }
+                        updated.mileageKm?.let { data.put("mileageKm", it) }
+                        val mileageMessage = updated.mileageKm?.let { " The maintenance mileage is $it kilometers." } ?: " The maintenance mileage was not provided."
+                        sendGleoResponse(action, "asking", "Ask the user to confirm the maintenance item, date, mileage, and any interval before saving.$mileageMessage Then call this function with confirmed set to true, or false to cancel.", org.json.JSONArray().put(data))
+                    }
+                    if (record.mileageKm == null && record.date == java.time.LocalDate.now()) {
+                        readVoiceOdometer { currentMileage ->
+                            if (pendingVoiceRecord !== expectedPending || isDestroyed) return@readVoiceOdometer
+                            val mileage = selectVoiceMileage(record.date, java.time.LocalDate.now(), record.mileageKm, currentMileage)
+                            if (mileage == null) {
+                                pendingVoiceRecord = null
+                                sendGleoResponse(action, "asking", "The current vehicle mileage is unavailable. Please provide the maintenance mileage or enter the record in the app.")
+                            } else {
+                                val updated = record.copy(mileageKm = mileage)
+                                pendingVoiceRecord = PendingVoiceRecord(updated, expectedPending!!.createdAt)
+                                askForConfirmation(updated)
+                            }
+                        }
+                    } else askForConfirmation(record)
+                }
             }
         }
         android.os.Handler(mainLooper).postDelayed({ respond(false) }, 5000)
@@ -370,6 +462,33 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) { respond(false) }
     }
 
+    private fun readVoiceOdometer(onResult: (Double?) -> Unit) {
+        var finished = false
+        val handler = android.os.Handler(mainLooper)
+        fun finish(value: Double?) {
+            runOnUiThread {
+                if (!finished) {
+                    finished = true
+                    onResult(value)
+                }
+            }
+        }
+        handler.postDelayed({ finish(null) }, 1200)
+        try {
+            val odometer = vehicle?.getOdometer()
+            if (odometer == null) { finish(null); return }
+            odometer.checkCurrentDistanceDrivenCapabilities(
+                onComplete = { config ->
+                    if (config.accessType != AccessType.READ && config.accessType != AccessType.READ_WRITE) finish(null)
+                    else try {
+                        odometer.getCurrentDistanceDriven(onComplete = { finish(it?.toDouble()) }, onFailed = { finish(null) })
+                    } catch (e: Exception) { finish(null) }
+                },
+                onFailed = { finish(null) }
+            )
+        } catch (e: Exception) { finish(null) }
+    }
+
     private fun sendGleoResponse(action: String, status: String, message: String, data: org.json.JSONArray? = null) {
         val response = JSONObject().put("functionName", action).put("status", status).put("message", message)
         if (data != null) response.put("data", data.toString())
@@ -378,41 +497,6 @@ class MainActivity : ComponentActivity() {
             putExtra("packageName", packageName)
             putExtra("response", response.toString())
         })
-    }
-
-    private fun respondToMaintenanceQuery(action: String, item: String) {
-        try {
-            if (action == "GET_MAINTENANCE_RECORD" && item.isBlank()) {
-                sendGleoResponse(action, "asking", "A maintenance item is required.")
-                return
-            }
-            val records = MaintenanceStore(this).load()
-            val latest = records.groupBy { it.item.trim().lowercase() }.values.map { group ->
-                group.maxWith(compareBy<MaintenanceRecord> { it.date }.thenBy { records.indexOf(it) })
-            }
-            val selected = if (action == "GET_MAINTENANCE_RECORD") latest.filter { it.item.trim().equals(item, ignoreCase = true) } else latest
-            if (selected.isEmpty()) {
-                sendGleoResponse(action, "success", if (action == "GET_MAINTENANCE_RECORD") "No maintenance record was found for the requested item." else "There are no saved maintenance records.")
-                return
-            }
-            val ordered = selected.sortedWith(compareBy<MaintenanceRecord> { record ->
-                val due = maintenanceDue(record, odometerKm.value)
-                if ((due.distanceRemaining != null && due.distanceRemaining <= 0) || (due.dueDate != null && !due.dueDate.isAfter(java.time.LocalDate.now()))) 0 else 1
-            }.thenBy { it.item })
-            val data = org.json.JSONArray()
-            ordered.take(5).forEach { record ->
-                val row = JSONObject().put("item", record.item).put("lastServiceDate", record.date.toString())
-                record.mileageKm?.let { row.put("serviceMileageKm", it) }
-                record.costWon?.let { row.put("costWon", it) }
-                val due = maintenanceDue(record, odometerKm.value)
-                due.dueDate?.let { row.put("nextDueDate", it.toString()) }
-                due.distanceRemaining?.let { row.put("remainingKm", it) }
-                data.put(row)
-            }
-            sendGleoResponse(action, "success", if (action == "GET_MAINTENANCE_RECORD") "The latest saved maintenance record was found." else "These are saved maintenance items and their available due criteria. Do not infer which is closest across distance and time.", data)
-        } catch (e: Exception) {
-            sendGleoResponse(action, "fail", "The saved maintenance records could not be read.")
-        }
     }
 
     private fun readOdometer() {
@@ -627,6 +711,8 @@ class MainActivity : ComponentActivity() {
         "$stage 실패: ${error.message ?: error.javaClass.simpleName}"
 
     override fun onDestroy() {
+        GleoRequestBridge.detach(gleoRequestListener)
+        GleoRequestBridge.detachRecordListener(gleoRecordListener)
         requestId++
         odometerRequestId++
         runCatching { uxManager?.unregisterListener() }
