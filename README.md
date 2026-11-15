@@ -14,7 +14,7 @@
 
 ## 제출 APK
 
-- 파일: [`apk/Moonsanghyeok_Car maintenance_release.apk`](apk/Moonsanghyeok_Car%20maintenance_release.apk)
+- 파일: [`apk/Pleos_Car maintenance_release.apk`](apk/Pleos_Car%20maintenance_release.apk)
 - `mobile` 모듈의 release 빌드를 공모전 시연용 키로 서명한 APK입니다. 패키지 ID는 `com.example.myapplication`, 버전은 `1.0`입니다.
 - SHA-256: `6D75B3C3F0A3D8B7F277DD2750380FF41E36A5A449F25A0B521214EEE169C775`
 - 같은 패키지의 디버그 APK가 이미 설치되어 있고 서명 키가 다르면 업데이트 설치가 거부됩니다. 기존 기기의 데이터를 보존하려면 앱을 삭제하지 말고 별도의 깨끗한 테스트 에뮬레이터에서 설치하세요.
@@ -34,7 +34,7 @@
 3. APK를 설치하거나 Android Studio에서 `mobile` 구성을 실행합니다. 예를 들어 깨끗한 에뮬레이터에서 아래 명령을 사용합니다.
 
    ```powershell
-   adb install "apk/Moonsanghyeok_Car maintenance_release.apk"
+   adb install "apk/Pleos_Car maintenance_release.apk"
    ```
 
 4. 차 관리 앱에서 기어가 `P`이고 입력 제한이 해제된 상태인지 확인합니다. 차량 상태와 누적거리는 Pleos Connect Virtual Console에서 시험할 수 있습니다.
