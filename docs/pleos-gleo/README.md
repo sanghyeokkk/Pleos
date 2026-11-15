@@ -10,7 +10,7 @@
 
 ## 현재 프로젝트 상태
 
-**2026-11-03 업데이트:** 차계부에 `ADD_MAINTENANCE_RECORD`, `GET_MAINTENANCE_RECORD`, `GET_MAINTENANCE_DUE` 세 동작을 추가했습니다. 실제 음성 호출·응답과 스키마 승인은 아직 검증하지 않았으며, 사용자 확인 없는 저장은 지원하지 않습니다. 현재 구현과 제한은 [내 차 관리 안내](../car-care/README.md)를 기준으로 확인합니다. 아래 기존 상태 설명은 연동 초안 이전의 기록입니다.
+**현재 구현:** 차계부에 `ADD_MAINTENANCE_RECORD`, `GET_MAINTENANCE_RECORD`, `GET_MAINTENANCE_DUE` 세 동작을 추가했습니다. 에뮬레이터에서 음성 기록·정정·저장 및 조회를 확인했으며, 앱 마켓용 스키마 승인은 별도 확인이 필요합니다. 사용자 확인 없는 저장은 지원하지 않습니다. 현재 구현과 제한은 [프로젝트 README](../../README.md)를 참고하세요. 아래 기존 상태 설명은 연동 초안 이전의 기록입니다.
 
 현재 `mobile` 앱의 applicationId는 `com.example.myapplication`, 개발용 versionName은 `1.0`입니다. Gleo가 호출할 실제 기능, 마켓에 등록할 앱 버전, 스키마 승인 여부는 아직 정해지지 않았습니다. 기존 앱은 도어 위치 조회와 SDK 초기화 예제를 제공하지만 Gleo Action 처리와 응답 전송은 아직 구현하지 않았습니다.
 
